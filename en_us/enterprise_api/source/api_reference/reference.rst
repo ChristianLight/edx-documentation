@@ -16,6 +16,24 @@ Endpoints
 
 The following endpoints are available in the Enterprise API.
 
+- **/subsidy-access-policies/** - You can make GET calls to the
+  ``/enterprise/v1/subsidy-access-policies/`` endpoint to list
+  subsidy access policies for an enterprise customer.
+  For details, see :ref:`subsidy_access_policies_list Endpoint`.
+
+- **/policy-allocation/{policy_uuid}/allocate/** - You can make POST calls to the
+  ``/enterprise/v1/policy-allocation/{policy_uuid}/allocate/`` endpoint to allocate
+  an assignment in the requested SubsidyAccessPolicy record to a list of users.
+  For details, see :ref:`policy_allocation Endpoint`.
+
+- **/assignment-configurations/remind** - You can make POST calls to the
+  ``/enterprise/v1/assignment-configurations/{assignment_configuration_uuid}/admin/assignments/remind/`` to remind learner(s) of their content assignments.
+  For details, see :ref:`assignment-configurations-remind Endpoint`.
+
+- **/assignment-configurations/cancel** - You can make POST calls to the
+  ``enterprise/v1/assignment-configurations/{assignment_configuration_uuid}/admin/assignments/cancel/`` to cancel the learner(s) content assignments.
+  For details, see :ref:`assignment-configurations-cancel Endpoint`.
+
 - **/subscriptions** - You can make GET calls to the
   ``/enterprise/v1/subscriptions`` endpoint to get a list of subscription plans.
   For details, see :ref:`subscriptions_summary Endpoint`.
@@ -64,6 +82,7 @@ The following endpoints are available in the Enterprise API.
   enterprise learners and their status in the courses they are enrolled in.
   For details, see :ref:`learner_summary Endpoint`.
 
+
   `Use this JSON file <https://raw.githubusercontent.com/openedx/edx-documentation/master/en_us/enterprise_api/source/api_reference/edX_Enterprise_API_Reference%20Collection.postman_collection.json>`_ to import into your `Postman enviroment <https://learning.postman.com/docs/getting-started/importing-and-exporting-data/>`_ . It includes the endpoints mentioned above.
 
 .. _Returning XML Data:
@@ -84,6 +103,417 @@ example, to request JSON-formatted information about a course run using
    https://api.edx.org/enterprise/v2/enterprise-catalogs/3f56a21c-76c8-47c0-add8-a99714d40d94/courses/MyUni+Sport101x \
    -H "Authorization: JWT {access token}"
    -H "Accept: application/json"
+
+.. _Policy_allocation Endpoint:
+
+**************************
+policy-allocation Endpoint
+**************************
+
+POST calls to the ``policy-allocation`` endpoint to allocate an assignment to a list of users provided in the request body in the requested content_key.
+
+===================
+Method and Endpoint
+===================
+
+.. list-table::
+   :widths: 20 80
+   :header-rows: 1
+
+   * - Method
+     - Endpoint
+   * - POST
+     - ``/enterprise/v1/policy-allocation/{policy_uuid}/allocate/``
+
+==============
+Request Values
+==============
+The ``POST /enterprise/v1/policy-allocation/{policy_uuid}/allocate/`` request accepts the following values in the body of the request:
+
+.. list-table::
+   :widths: 25 20 80
+   :header-rows: 1
+
+   * - Field
+     - Data Type
+     - Description
+   * - ``learner_emails``
+     - array
+     - Learner emails to whom assignment should be allocated.
+   * - ``content_key``
+     - string
+     - Course content_key to which these learners are assigned.
+   * - ``content_price_cents``
+     - integer
+     - The price, in USD cents, of this content at the time of allocation. Must be >= 0.
+
+===============
+Example Request
+===============
+::
+
+   curl -X POST
+     https://api.edx.org/enterprise/v1/policy-allocation/904b1785-9d3a-1000-848d-6ae7a56e6355/allocate/ \
+     -H 'Authorization: JWT {access token}'
+     -H 'Content-Type: application/json' \
+     -d '{"learner_emails":["abc@example.com","xyz@example.com"],"content_key":"edx+api101","content_price_cents":1000}'
+
+===============
+Response Values
+===============
+The ``/enterprise/v1/policy-allocation/{policy_uuid}/allocate/`` request returns the following response values:
+
+.. list-table::
+   :widths: 25 20 80
+   :header-rows: 1
+
+   * - Field
+     - Data Type
+     - Description
+   * - ``updated``
+     - integer
+     - Assignment records whose state was transitioned to "allocated" as a result of this action.
+   * - ``created``
+     - integer
+     - New assignment records that were created as a result of this action.
+   * - ``no_change``
+     - array
+     - Already-allocated assignment records related to the requested policy, learner email(s), and content for this action.
+
+===================
+Example Response
+===================
+
+A sample response with a status `202 Accepted` will look like:
+
+::
+
+   {
+        "updated": [],
+        "created": [
+            {
+                "uuid": "4fa11bd53f29c131aa72",
+                "assignment_configuration": "6fc7ef56e6eb209f7668",
+                "learner_email": "abc@example.com",
+                "lms_user_id": 123123,
+                "content_key": "edx+101",
+                "content_title": "edX 101",
+                "content_quantity": -10000,
+                "state": "allocated",
+                "transaction_uuid": null,
+                "actions": [],
+                "earliest_possible_expiration": {
+                    "date": "2024-08-20T11:58:34.666249Z",
+                    "reason": "NINETY_DAYS_PASSED"
+                }
+            }
+        ],
+        "no_change": []
+   }
+
+.. _Subsidy_access_policies_list Endpoint:
+
+*************************************
+subsidy_access_policies_list Endpoint
+*************************************
+
+
+GET calls to the ``subsidy-access-policies-list`` endpoint to list subsidy access policies for an enterprise customer.
+
+===================
+Method and Endpoint
+===================
+
+.. list-table::
+   :widths: 20 80
+   :header-rows: 1
+
+   * - Method
+     - Endpoint
+   * - GET
+     - ``/enterprise/v1/subsidy-access-policies/``
+
+==============
+Request Values
+==============
+The ``GET /enterprise/v1/subsidy-access-policies/`` request accepts the following values as the query parameters of the request:
+
+.. list-table::
+   :widths: 25 20 80
+   :header-rows: 1
+
+   * - Field
+     - Data Type
+     - Description
+   * - ``active``
+     - boolean
+     - Set to FALSE to deactivate and hide this policy. Use this when you want to disable redemption and make it disappear from all frontends, effectively soft-deleting it. Default is False (deactivated).
+   * - ``enterprise_customer_uuid``
+     - string <uuid>
+     - The owning Enterprise Customer's UUID. Cannot be blank or null.
+   * - ``page``
+     - integer
+     - A page number within the paginated result set.
+   * - ``page_size``
+     - integer
+     - Number of results to return per page.
+   * - ``policy_type``
+     - string
+     - The type of this policy (e.g. the name of an access policy proxy model).
+
+===============
+Example Request
+===============
+::
+
+   curl -X GET
+     https://api.edx.org/enterprise/v1/subsidy-access-policies/?active=true&enterprise_customer_uuid=66b5922b-a22b-4a7b-b587-d4af0378bd6f' \
+     -H 'Authorization: JWT {access token}'
+     -H 'Content-Type: application/json' \
+
+===============
+Response Values
+===============
+The ``/enterprise/v1/subsidy-access-policies/`` request returns the following response values:
+
+.. list-table::
+   :widths: 25 20 80
+   :header-rows: 1
+
+   * - Field
+     - Data Type
+     - Description
+   * - ``uuid``
+     - string <uuid>
+     - A unique identifier for the policy.
+   * - ``policy_type``
+     - string
+     - The type of this policy.
+   * - ``display_name``
+     - string
+     - The name of the policy.
+   * - ``description``
+     - string
+     - A description of the policy.
+   * - ``active``
+     - boolean
+     - Whether or not the policy is active.
+   * - ``retired``
+     - boolean
+     - Whether or not the policy is retired.
+   * - ``enterprise_customer_uuid``
+     - string <uuid>
+     - The owning Enterprise Customer's UUID.
+   * - ``catalog_uuid``
+     - string <uuid>
+     - The catalog's UUID.
+   * - ``subsidy_uuid``
+     - string <uuid>
+     - The subsidy's UUID.
+   * - ``access_method``
+     - string
+     - The method of access for this policy.
+   * - ``per_learner_enrollment_limit``
+     - integer
+     - The maximum number of enrollments per learner.
+   * - ``per_learner_spend_limit``
+     - integer
+     - The maximum spend per learner.
+   * - ``spend_limit``
+     - integer
+     - The maximum spend for this policy.
+   * - ``subsidy_active_datetime``
+     - string
+     - The datetime when the subsidy is active.
+   * - ``subsidy_expiration_datetime``
+     - string
+     - The datetime when the subsidy expires.
+   * - ``is_subsidy_active``
+     - boolean
+     - Whether or not the subsidy is active.
+   * - ``aggregates``
+     - array
+     - Aggregated data for this policy.
+   * - ``assignment_configuration``
+     - array
+     - Assignment configuration for this policy.
+   * - ``group_associations``
+     - array
+     - Group associations for this policy.
+   * - ``late_redemption_allowed_until``
+     - string
+     - The datetime until late redemption is allowed.
+   * - ``is_late_redemption_allowed``
+     - boolean
+     - Whether or not late redemption is allowed.
+
+===================
+Example Response
+===================
+
+A sample response with a status `200 OK` will look like:
+
+::
+
+   {
+        "next": null,
+        "previous": null,
+        "count": 1,
+        "num_pages": 1,
+        "current_page": 1,
+        "start": 0,
+        "results": [
+            {
+                "uuid": "7f344aea-c28c-4ef0-95e6-fb6e58f98495",
+                "policy_type": "AssignedLearnerCreditAccessPolicy",
+                "display_name": "Assignable Budget ALC General Testing",
+                "description": "Budget for general Assigned LC Testing",
+                "active": true,
+                "retired": false,
+                "enterprise_customer_uuid": "66b5922b-a22b-4a7b-b587-d4af0378bd6f",
+                "catalog_uuid": "101989c0-5dfa-4e0b-91dc-01f590148c6f",
+                "subsidy_uuid": "1b6c28b4-2f17-4b18-bbde-b32930e2705c",
+                "access_method": "assigned",
+                "per_learner_enrollment_limit": null,
+                "per_learner_spend_limit": null,
+                "spend_limit": 100000000,
+                "subsidy_active_datetime": "2023-11-15T20:16:59Z",
+                "subsidy_expiration_datetime": "2025-11-15T20:17:01Z",
+                "is_subsidy_active": true,
+                "aggregates": {
+                    "amount_redeemed_usd_cents": 181450,
+                    "amount_redeemed_usd": 1814.5,
+                    "amount_allocated_usd_cents": 279100,
+                    "amount_allocated_usd": 2791.0,
+                    "spend_available_usd_cents": 99539450,
+                    "spend_available_usd": 995394.5
+                },
+                "assignment_configuration": {
+                    "uuid": "6fc7ef56-d1c4-4aa8-a649-e6eb209f7668",
+                    "subsidy_access_policy": "7f344aea-c28c-4ef0-95e6-fb6e58f98495",
+                    "enterprise_customer_uuid": "66b5922b-a22b-4a7b-b587-d4af0378bd6f",
+                    "active": true
+                },
+                "group_associations": [],
+                "late_redemption_allowed_until": null,
+                "is_late_redemption_allowed": false
+            }
+        ]
+    }
+
+
+.. _Assignment-configurations-remind Endpoint:
+
+*************************************************************************************
+assignment-configurations-remind  Endpoint
+*************************************************************************************
+
+POST calls to the ``assignment-configurations-remind`` endpoint reminds learners of their content assignments.
+
+===================
+Method and Endpoint
+===================
+
+.. list-table::
+   :widths: 20 80
+   :header-rows: 1
+
+   * - Method
+     - Endpoint
+   * - POST
+     - ``enterprise/v1/assignment-configurations/{assignment_configuration_uuid}/admin/assignments/remind/``
+
+=====================
+Request Values
+=====================
+The ``POST enterprise/v1/assignment-configurations/{assignment_configuration_uuid}/admin/assignments/remind/`` request accepts the following values in the body of the request:
+
+.. list-table::
+   :widths: 25 20 80
+   :header-rows: 1
+
+   * - Field
+     - Data Type
+     - Description
+   * - ``assignment_uuids``
+     - array
+     - List of assignment UUIDs for the learners that need to be reminded of, associated with the assignment configuration UUID specified in the URL.
+
+=====================
+Example Request
+=====================
+
+Request payload
+::
+
+   curl -X POST
+     https://api.edx.org/enterprise/v1/assignment-configurations/6fc7ef56-d1c4-4aa8-a649-e6eb209f0000/admin/assignments/remind/ \
+     -H 'Authorization: JWT {access token}'
+     -H 'Content-Type: application/json' \
+     -d '{"assignment_uuids":["8977ef56-d1c4-4aa8-a649-e6eb209f0000","8907ef56-d1c4-4aa8-a649-e6eb209f0000"]'
+
+===================
+Example Response
+===================
+
+A sample response with a status `200 OK` will be returned
+
+
+.. _Assignment-configurations-cancel Endpoint:
+
+*************************************************************************************
+assignment-configurations-cancel  Endpoint
+*************************************************************************************
+
+POST calls to the ``/assignment-configurations-cancel`` cancels content assignments of learners.
+
+===================
+Method and Endpoint
+===================
+
+.. list-table::
+   :widths: 20 80
+   :header-rows: 1
+
+   * - Method
+     - Endpoint
+   * - POST
+     - ``enterprise/v1/assignment-configurations/{assignment_configuration_uuid}/admin/assignments/cancel/``
+
+=====================
+Request Values
+=====================
+The ``POST enterprise/v1/assignment-configurations/{assignment_configuration_uuid}/admin/assignments/cancel/`` request accepts the following values in the body of the request:
+
+.. list-table::
+   :widths: 25 20 80
+   :header-rows: 1
+
+   * - Field
+     - Data Type
+     - Description
+   * - ``assignment_uuids``
+     - array
+     - List of assignment UUIDs for the learners that need to be canceled, associated with the assignment configuration UUID specified in the URL.
+
+=====================
+Example Request
+=====================
+
+Request payload
+::
+
+   curl -X POST
+     https://api.edx.org/enterprise/v1/assignment-configurations/6fc7ef56-d1c4-4aa8-a649-e6eb209f0000/admin/assignments/cancel/ \
+     -H 'Authorization: JWT {access token}'
+     -H 'Content-Type: application/json' \
+     -d '{"assignment_uuids":["8977ef56-d1c4-4aa8-a649-e6eb209f0000","8907ef56-d1c4-4aa8-a649-e6eb209f0000"]'
+
+===================
+Example Response
+===================
+
+A sample response with a status `200 OK` will be returned
 
 .. _Subscriptions_summary Endpoint:
 
@@ -126,7 +556,7 @@ You can use optional query parameters to get specific subscription plans.
 .. list-table::
    :widths: 25 20 80
    :header-rows: 1
-  
+
    * - Parameter
      - Data Type
      - Description
@@ -238,7 +668,7 @@ Example Response
 A sample response with a status `200 OK` will look like:
 
 ::
-  
+
    {
     "count": 1,
     "next": null,
@@ -281,6 +711,7 @@ A sample response with a status `200 OK` will look like:
         }
     ]
    }
+
 
 .. _Licenses_assign Endpoint:
 
@@ -540,6 +971,7 @@ A sample response with a status `201 Created` will look like:
    {
     "job_id": "<UUID4>"
    }
+
 
 .. _Enterprise_catalogs Endpoint:
 
